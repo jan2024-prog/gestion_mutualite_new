@@ -28,30 +28,36 @@ if (isset($_GET['edit_id'])) {
 /* =============================
    LISTE DES CRÉDITS EN COURS
    ============================= */
-$query_sel = $pdo->prepare("
-    SELECT 
-        c.id_credit,
-        m.noms
-    FROM Tcredit c
-    INNER JOIN Tmembre m ON m.id_membre = c.id_membre
-    WHERE c.statut = 'En cours'
-      AND c.montant_credit > 0
+   $query_sel = $pdo->prepare("
+   SELECT 
+       m.*,
+       co.numero_compte,
+       c.id_credit,
+       c.montant_credit,
+       c.date_credit,
+       c.statut
+   FROM membre m
+   INNER JOIN compte co ON m.id_membre = co.id_membre
+   INNER JOIN credit c ON co.id_compte = c.id_compte
+   WHERE c.statut = 'En cours'
+     AND c.montant_credit > 0
 ");
 $query_sel->execute();
-
 /* =============================
    LISTE DES REMBOURSEMENTS
    ============================= */
-$queryaffichage = $pdo->prepare("
+   $queryaffichage = $pdo->prepare("
     SELECT
         r.id_remboursement,
         r.montant_rembourse,
         r.date_remboursement,
         r.libele,
-        m.noms
-    FROM Tremboursement r
-    INNER JOIN Tcredit c ON c.id_credit = r.id_credit
-    INNER JOIN Tmembre m ON m.id_membre = c.id_membre
+        m.noms AS nom_membre,
+        co.numero_compte
+    FROM remboursement r
+    INNER JOIN credit c ON c.id_credit = r.id_credit
+    INNER JOIN compte co ON co.id_compte = c.id_compte
+    INNER JOIN membre m ON m.id_membre = co.id_membre
     ORDER BY r.date_remboursement DESC
 ");
 $queryaffichage->execute();
@@ -103,7 +109,13 @@ $queryaffichage->execute();
             <input type="date" name="daterem" class="form-control"
             value="<?= $edit['date_remboursement'] ?? '' ?>" required>  
           </div>
-
+          <div class="col-md-2">
+          <label>Devise</label>
+          <select name="devise" class="form-select">
+              <option value="Franc">Franc congolais</option>
+              <option value="Dollar">Dollars</option>
+          </select>
+          </div>
           <div class="col-md-6">
             <label>Libellé</label>
             <input type="text" name="libele" class="form-control"
@@ -152,7 +164,7 @@ $queryaffichage->execute();
     <tr>
     <td><?= $i ?></td>
     <td><?= htmlspecialchars($row['date_remboursement']) ?></td>
-    <td><?= htmlspecialchars($row['noms']) ?></td>
+    <td><?= htmlspecialchars($row['nom_membre']) ?></td>
     <td><?= number_format($row['montant_rembourse'], 2) ?></td>
     <td><?= htmlspecialchars($row['libele']) ?></td>
     <td>
