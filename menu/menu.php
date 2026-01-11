@@ -1,10 +1,18 @@
   <!-- ======= Header ======= -->
     <header id="header" class="header fixed-top d-flex align-items-center">
 
+    <?php require_once("connexion/connexion.php");
+
+    // On suppose qu'il n'y a qu'une entreprise ou que l'on prend la première
+    $sql = "SELECT * FROM entreprise LIMIT 1";
+    $stmt = $pdo->query($sql);
+    $entreprise = $stmt->fetch(PDO::FETCH_ASSOC);
+    ?>
+
     <div class="d-flex align-items-center justify-content-between">
-      <a href="index.html" class="logo d-flex align-items-center">
-        <img src="assets/img/logo.png" alt="">
-        <span class="d-none d-lg-block">NiceAdmin</span>
+      <a href="#" class="logo d-flex align-items-center">
+        <img src="uploads/<?= htmlspecialchars($entreprise['logo']) ?>" alt="Logo Entreprise" style="max-width:200px;">
+        <span class="d-none d-lg-block"> <?= htmlspecialchars($entreprise['nom']) ?></span>
       </a>
       <i class="bi bi-list toggle-sidebar-btn"></i>
     </div><!-- End Logo -->
@@ -233,7 +241,7 @@
     <ul class="sidebar-nav" id="sidebar-nav">
 
       <li class="nav-item">
-        <a class="nav-link " href="index.html">
+        <a class="nav-link " href="#">
           <i class="bi bi-grid"></i>
           <span></span>
         </a>
