@@ -1,125 +1,95 @@
 <?php
 session_start();
-require_once("config/connexion.php"); // connexion à la DB
+require_once("connexion/connexion.php");
+
+$sql = "
+SELECT 
+    c.id_credit,
+    co.numero_compte,
+    m.noms,
+    c.montant_credit,
+    c.date_echeance,
+    c.penalite_active,
+    DATEDIFF(CURDATE(), c.date_echeance) AS jours_retard
+FROM credit c
+JOIN compte co ON c.id_compte = co.id_compte
+JOIN membre m ON co.id_membre = m.id_membre
+WHERE 
+    c.penalite_active = 1
+    AND c.date_echeance < CURDATE()
+    AND c.statut != 'Soldé'
+ORDER BY jours_retard DESC 
+";
+
+$credits = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Liste des pénalités - Tontine</title>
-    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <title>Crédits en retard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-
 <body>
 
-<div class="container-fluid mt-4">
-    <div class="row">
+<main id="main" class="main">
 
-        <!-- MENU GAUCHE -->
-        <div class="col-lg-3 col-md-4">
-            
-        </div>
-
-        <!-- CONTENU DROIT -->
-        <div class="col-lg-9 col-md-8">
-            <div class="container col-lg-10">
-
-                <!-- TITRE -->
-                <div class="row mb-3">
-                    <div class="col">
-                        <h4 class="fw-bold text-primary text-center">
-                            Liste complète des pénalités appliquées
-                        </h4>
-                    </div>
-                </div>
-
-                <!-- CARD -->
-                <div class="card shadow-sm">
-
-                    <div class="card-header bg-primary text-white">
-                        Historique des pénalités
-                    </div>
-
-                    <div class="card-body">
-
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover table-sm align-middle">
-                                <thead class="table-light text-center">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Membre</th>
-                                        <th>Compte</th>
-                                        <th>Montant pénalité</th>
-                                        <th>Date pénalité</th>
-                                        <th>Crédit</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                <?php
-                                $sql = "
-                                    SELECT 
-                                        m.noms,
-                                        c.numero_compte,
-                                        p.montant_penalite,
-                                        p.date_penalite,
-                                        cr.montant_credit AS montant_credit
-                                    FROM Thistorique_penalite p
-                                    JOIN Tcredit cr ON p.id_credit = cr.id_credit
-                                    JOIN Tcompte c ON cr.id_membre = c.id_membre
-                                    JOIN Tmembre m ON c.id_membre = m.id_membre
-                                    ORDER BY p.date_penalite DESC
-                                ";
-                                $stmt = $pdo->query($sql);
-                                $i = 1;
-
-                                if ($stmt->rowCount() > 0):
-                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)):
-                                ?>
-                                    <tr>
-                                        <td class="text-center"><?= $i++ ?></td>
-                                        <td><?= htmlspecialchars($row['noms']) ?></td>
-                                        <td class="text-center"><?= htmlspecialchars($row['numero_compte']) ?></td>
-                                        <td class="text-end text-danger fw-bold">
-                                            <?= number_format($row['montant_penalite'], 0, ',', ' ') ?> FC
-                                        </td>
-                                        <td class="text-center">
-                                            <?= date('d/m/Y', strtotime($row['date_penalite'])) ?>
-                                        </td>
-                                        <td class="text-end">
-                                            <?= number_format($row['montant_credit'], 0, ',', ' ') ?> FC
-                                        </td>
-                                    </tr>
-                                <?php
-                                    endwhile;
-                                else:
-                                ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted">
-                                            Aucun historique de pénalités disponible
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-
-                    <!-- FOOTER -->
-                    <div class="card-footer text-muted text-center">
-                        Système de gestion des crédits – Liste des pénalités
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-    </div>
+<div class="pagetitle">
+    <h1 class="text-center">Crédits en retard avec pénalités actives</h1>
 </div>
 
-<script src="assets/bootstrap/js/bootstrap.bundle.min.js"></script>
-</body>
+<div class="card mt-4">
+<div class="card-body">
+
+<?php if(count($credits) == 0): ?>
+    <div class="text-center" style="color:green;font-weight:bold">
+        Aucun crédit avec pénalité active 🎉
+    </div>
+<?php else: ?>
+<table class="table table-striped">
+<thead>
+<tr>
+    <th>#</th>
+    <th>Membre</th>
+    <th>Compte</th>
+    <th>Montant crédit</th>
+    <th>Échéance</th>
+    <th>Jours de retard</th>
+    <th>Pénalité</th>
+    <th class="text-center">Action</th>
+</tr>
+</thead>
+<tbody>
+<?php $i=1; foreach($credits as $c): ?>
+<tr>
+    <td><?= $i++ ?></td>
+    <td><?= htmlspecialchars($c['noms']) ?></td>
+    <td><?= $c['numero_compte'] ?></td>
+    <td><?= number_format($c['montant_credit'],2) ?> FC</td>
+    <td><?= $c['date_echeance'] ?></td>
+    <td class="text-center text-danger fw-bold"><?= $c['jours_retard'] ?> jour(s)</td>
+    <td class="text-center text-danger fw-bold">ACTIVE</td>
+    <td class="text-center">
+        <form method="post" action="traitement/toggle_penalite.php">
+            <input type="hidden" name="id_credit" value="<?= $c['id_credit'] ?>">
+            <input type="hidden" name="etat" value="<?= $c['penalite_active'] ?>">
+            <button type="submit" class="btn btn-sm <?= $c['penalite_active'] ? 'btn-danger' : 'btn-success' ?>">
+                <?= $c['penalite_active'] ? 'Désactiver' : 'Activer' ?>
+            </button>
+        </form>
+    </td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+<?php endif; ?>
+
+</div>
+</div>
+
 <?php include "menu/lien.php"; ?>
+</main>
+
+</body>
 </html>

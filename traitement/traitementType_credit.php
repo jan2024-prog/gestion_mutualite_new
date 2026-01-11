@@ -1,72 +1,58 @@
-
-<?php 
-
-session_start();
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
+<?php
 require_once("../connexion/connexion.php");
 
-/* ==========================
-   AJOUT TYPE DE CRÉDIT
-========================== */
-if (isset($_POST['action']) && $_POST['action'] === 'ajouter_type_credit') {
+$action = $_POST['action'] ?? $_GET['action'] ?? null;
+
+/* ======================
+   AJOUT
+====================== */
+if ($action === 'ajouter') {
 
     $stmt = $pdo->prepare("
-        INSERT INTO Ttype_credit (libelle, taux_interet, duree_mois)
+        INSERT INTO type_credit (libelle, taux_interet, duree_max)
         VALUES (?, ?, ?)
     ");
     $stmt->execute([
         $_POST['libelle'],
         $_POST['taux_interet'],
-        $_POST['duree_mois']
+        $_POST['duree_max']
     ]);
 
-    $_SESSION['message'] = "Type de crédit ajouté avec succès";
-    header("Location: ../type_credit.php");
+    header("Location: ../type_credit.php?success=1");
     exit;
 }
 
-/* ==========================
-   MODIFICATION TYPE DE CRÉDIT
-========================== */
-if (isset($_POST['action']) && $_POST['action'] === 'modifier_type_credit') {
+/* ======================
+   MODIFICATION
+====================== */
+if ($action === 'modifier') {
 
     $stmt = $pdo->prepare("
-        UPDATE Ttype_credit
-        SET libelle = ?, taux_interet = ?, duree_mois = ?
+        UPDATE type_credit
+        SET libelle = ?, taux_interet = ?, duree_max = ?
         WHERE id_type_credit = ?
     ");
     $stmt->execute([
         $_POST['libelle'],
         $_POST['taux_interet'],
-        $_POST['duree_mois'],
+        $_POST['duree_max'],
         $_POST['id_type_credit']
     ]);
 
-    $_SESSION['message'] = "Type de crédit modifié avec succès";
-    header("Location: ../type_credit.php");
+    header("Location: ../type_credit.php?success=2");
     exit;
 }
 
+/* ======================
+   SUPPRESSION
+====================== */
+if ($action === 'supprimer') {
 
-/* ============================
-   SUPPRESSION TYPE DE CRÉDIT
-============================ */
-if (isset($_GET['action']) && $_GET['action'] === 'supprimer_type_credit') {
+    $stmt = $pdo->prepare("
+        DELETE FROM type_credit WHERE id_type_credit = ?
+    ");
+    $stmt->execute([$_GET['id']]);
 
-    $id_type_credit = intval($_GET['id']);
-
-    try {
-        $stmt = $pdo->prepare("DELETE FROM Ttype_credit WHERE id_type_credit = ?");
-        $stmt->execute([$id_type_credit]);
-
-        $_SESSION['message'] = "Type de crédit supprimé avec succès";
-
-    } catch (PDOException $e) {
-        $_SESSION['messageError'] = "Erreur lors de la suppression : " . $e->getMessage();
-    }
-
-    header("Location: ../type_credit.php");
+    header("Location: ../type_credit.php?success=3");
     exit;
 }

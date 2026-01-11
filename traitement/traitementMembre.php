@@ -22,7 +22,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'save') {
     $photo = "";
     if (!empty($_FILES['photo']['name'])) {
         $photo = $_FILES['photo']['name'];
-        move_uploaded_file($_FILES['photo']['tmp_name'], "../uploads/".$photo);
+        move_uploaded_file($_FILES['photo']['tmp_name'], "../photos/".$photo);
     }
 
     $stmt = $pdo->prepare("INSERT INTO membre 
