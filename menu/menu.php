@@ -298,6 +298,11 @@
               <i class="bi bi-circle"></i><span>depot</span>
             </a>
           </li>
+          <li>
+            <a href="retraitcomptebl.php">
+              <i class="bi bi-circle"></i><span>retrait compte bloque</span>
+            </a>
+          </li>
         </ul>
       </li>
 
