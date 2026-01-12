@@ -1,24 +1,35 @@
 <?php
 require_once("../connexion/connexion.php");
+
 /* =========================
-   SUPPRESSION D'UN DEPOT
+   FONCTION : TOTAL DÉPOSÉ
+   ========================= */
+function getTotalDepose(PDO $pdo, int $id_compte, string $devise): float
+{
+    $req = $pdo->prepare("
+        SELECT IFNULL(SUM(montant),0) AS total
+        FROM tdepot_compte_bloque
+        WHERE id_compte_bloque = ?
+          AND devise = ?
+    ");
+    $req->execute([$id_compte, $devise]);
+    return (float) $req->fetchColumn();
+}
+
+/* =========================
+   SUPPRESSION D'UN DÉPÔT
    ========================= */
 if (isset($_GET['action']) && $_GET['action'] === 'supprimer') {
 
-    if (!empty($_GET['id_depot'])) {
-        $id_depot = (int) $_GET['id_depot'];
+    $id_depot = (int) ($_GET['id_depot'] ?? 0);
 
+    if ($id_depot > 0) {
         try {
-            $supprimer = $pdo->prepare("
-                DELETE FROM tdepot_compte_bloque 
-                WHERE id_depot = ?
-            ");
-            $supprimer->execute([$id_depot]);
-
+            $stmt = $pdo->prepare("DELETE FROM tdepot_compte_bloque WHERE id_depot = ?");
+            $stmt->execute([$id_depot]);
             $message = "Dépôt supprimé avec succès";
-
         } catch (PDOException $e) {
-            $message = "Erreur lors de la suppression : " . $e->getMessage();
+            $message = "Erreur suppression : " . $e->getMessage();
         }
     } else {
         $message = "Identifiant invalide";
@@ -27,145 +38,99 @@ if (isset($_GET['action']) && $_GET['action'] === 'supprimer') {
     header("Location: ../depot.php?message=" . urlencode($message));
     exit();
 }
+
 /* =========================
-   MODIFICATION D'UN DEPOT
+   MODIFICATION D'UN DÉPÔT
    ========================= */
 if (isset($_POST['action']) && $_POST['action'] === 'modifier_depot') {
 
     $id_depot      = (int) $_POST['id_depot'];
-    $numero_compte = $_POST['numero_compte'];
+    $id_compte     = (int) $_POST['numero_compte'];
     $montant       = $_POST['montant'];
     $libelle       = $_POST['libelle'];
     $modepaie      = $_POST['modepaie'];
-    $dateCotise    = $_POST['dateCotise'];
-    $devise        =$_POST['devise'];
-    if (
-        !empty($id_depot) &&
-        !empty($numero_compte) &&
-        !empty($montant) &&
-        !empty($libelle) &&
-        !empty($modepaie) &&
-        !empty($dateCotise) &&
-        !empty($devise)
-    ) {
+    $dateDepot     = $_POST['dateCotise'];
+    $devise        = $_POST['devise'];
+
+    if ($id_depot && $id_compte && $montant && $libelle && $modepaie && $dateDepot && $devise) {
 
         try {
-            $update = $pdo->prepare("
+            $stmt = $pdo->prepare("
                 UPDATE tdepot_compte_bloque
-                SET
-                    id_compte_bloque = ?,
+                SET id_compte_bloque = ?,
                     montant = ?,
                     date_depot = ?,
                     mode_paiement = ?,
                     libele = ?,
-                    devise=?
+                    devise = ?
                 WHERE id_depot = ?
             ");
-
-            $ok = $update->execute([
-                $numero_compte,
+            $stmt->execute([
+                $id_compte,
                 $montant,
-                $dateCotise,
+                $dateDepot,
                 $modepaie,
                 $libelle,
                 $devise,
                 $id_depot
             ]);
 
-            if ($ok) {
-                $message = "Dépôt modifié avec succès";
-            } else {
-                $message = "Erreur lors de la modification";
-            }
+            $total = getTotalDepose($pdo, $id_compte, $devise);
+            $message = "Dépôt modifié | Total déposé : "
+                . number_format($total, 2, ',', ' ') . " " . $devise;
 
         } catch (PDOException $e) {
             $message = "Erreur SQL : " . $e->getMessage();
         }
-
     } else {
-        $message = "Veuillez remplir tous les champs";
+        $message = "Tous les champs sont obligatoires";
     }
 
     header("Location: ../depot.php?message=" . urlencode($message));
     exit();
 }
 
-
 /* =========================
-   AJOUT D'UN DEPOT
+   AJOUT D'UN DÉPÔT
    ========================= */
 if (isset($_POST['save'])) {
 
-    $numero_compte = $_POST['numero_compte'];
-    $montant       = $_POST['montant'];
-    $libelle       = $_POST['libelle'];
-    $modepaie      = $_POST['modepaie'];
-    $dateCotise    = $_POST['dateCotise'];
-    $devise        =$_POST['devise'];
-    if (
-        !empty($numero_compte) &&
-        !empty($montant) &&
-        !empty($libelle) &&
-        !empty($modepaie) &&
-        !empty($dateCotise) &&
-        !empty($devise)
-    ) {
+    $id_compte  = (int) $_POST['numero_compte'];
+    $montant    = $_POST['montant'];
+    $libelle    = $_POST['libelle'];
+    $modepaie   = $_POST['modepaie'];
+    $dateDepot  = $_POST['dateCotise'];
+    $devise     = $_POST['devise'];
+
+    if ($id_compte && $montant && $libelle && $modepaie && $dateDepot && $devise) {
 
         try {
-            $verif = $pdo->prepare("
-                SELECT 1 
-                FROM tdepot_compte_bloque 
-                WHERE id_compte_bloque = ?
-                  AND montant = ?
-                  AND date_depot = ?
-                  AND mode_paiement = ?
-                  AND libele = ?
-                  AND devise=?
+            $insert = $pdo->prepare("
+                INSERT INTO tdepot_compte_bloque
+                (id_compte_bloque, montant, date_depot, mode_paiement, libele, devise)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
-
-            $verif->execute([
-                $numero_compte,
+            $insert->execute([
+                $id_compte,
                 $montant,
-                $dateCotise,
+                $dateDepot,
                 $modepaie,
                 $libelle,
                 $devise
             ]);
 
-            if ($verif->fetch()) {
-                $message = "Cet enregistrement existe déjà";
-            } else {
+            $total = getTotalDepose($pdo, $id_compte, $devise);
 
-                $insert = $pdo->prepare("
-                    INSERT INTO tdepot_compte_bloque
-                    (id_compte_bloque, montant, date_depot, mode_paiement, libele, devise)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
-
-                $ok = $insert->execute([
-                    $numero_compte,
-                    $montant,
-                    $dateCotise,
-                    $modepaie,
-                    $libelle,
-                    $devise
-                ]);
-
-                if ($ok) {
-                    $message = "Enregistrement effectué avec succès";
-                } else {
-                    $message = "Erreur lors de l'enregistrement";
-                }
-            }
+            $message = "Dépôt enregistré avec succès | Vous avez atteint un montant de : "
+                . number_format($total, 2, ',', ' ') . " " . $devise. " courage cher membre et merci pour notre confiance";
 
         } catch (PDOException $e) {
             $message = "Erreur SQL : " . $e->getMessage();
         }
-
     } else {
         $message = "Veuillez remplir tous les champs";
     }
 
-    header("Location: ../depot.php?message=" . urlencode($message));
+    header("Location: ../depot.php?message=" .$message);
     exit();
 }

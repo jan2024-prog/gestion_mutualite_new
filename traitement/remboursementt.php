@@ -9,14 +9,111 @@ if (isset($_GET['delete_id'])) {
     $id_remboursement = (int) $_GET['delete_id'];
 
     try {
-        $query_delete = $pdo->prepare(
-            "DELETE FROM remboursement WHERE id_remboursement = ?"
-        );
-        $query_delete->execute([$id_remboursement]);
+        $del = $pdo->prepare("DELETE FROM Tremboursement WHERE id_remboursement = ?");
+        $del->execute([$id_remboursement]);
 
         $message = "Remboursement supprimé avec succès.";
+
     } catch (PDOException $e) {
-        $message = "Erreur SQL lors de la suppression : " . $e->getMessage();
+        $message = "Erreur SQL : " . $e->getMessage();
+    }
+
+    header("Location: ../ramboursement.php?message=" . urlencode($message));
+    exit();
+}
+
+/* ============================
+   AJOUT D'UN REMBOURSEMENT
+   ============================ */
+if (isset($_POST['save'])) {
+
+    $id_credit = (int) $_POST['credit'];
+    $montant   = (float) $_POST['montant'];
+    $devise    = $_POST['devise'];
+    $daterem   = $_POST['daterem'];
+    $libele    = $_POST['libele'];
+
+    if ($id_credit && $montant > 0 && $devise && $daterem && $libele) {
+
+        try {
+            /* ============================
+               1. RÉCUPÉRER LE CRÉDIT
+               ============================ */
+            $creditReq = $pdo->prepare("
+                SELECT montant_credit, devise
+                FROM credit
+                WHERE id_credit = ?
+            ");
+            $creditReq->execute([$id_credit]);
+            $credit = $creditReq->fetch(PDO::FETCH_ASSOC);
+
+            if (!$credit) {
+                header("Location: ../ramboursement.php?error=Crédit introuvable");
+                exit();
+            }
+
+            /* ============================
+               2. VÉRIFIER LA DEVISE
+               ============================ */
+            if ($credit['devise'] !== $devise) {
+                header("Location: ../ramboursement.php?error=La devise du remboursement doit être " . $credit['devise']);
+                exit();
+            }
+
+            /* ============================
+               3. TOTAL DÉJÀ REMBOURSÉ
+               ============================ */
+            $totalReq = $pdo->prepare("
+                SELECT IFNULL(SUM(montant_rembourse),0) AS total_rembourse
+                FROM remboursement
+                WHERE id_credit = ?
+                  AND devise = ?
+            ");
+            $totalReq->execute([$id_credit, $devise]);
+            $total = $totalReq->fetch(PDO::FETCH_ASSOC)['total_rembourse'];
+
+            $reste = $credit['montant_credit'] - $total;
+
+            /* ============================
+               4. CONTRÔLES DE MONTANT
+               ============================ */
+            if ($montant > $reste) {
+                header("Location: ../ramboursement.php?error=Montant supérieur au reste à rembourser (" . number_format($reste,2,',',' ') . " " . $devise . ")");
+                exit();
+            }
+
+            /* ============================
+               5. INSERTION
+               ============================ */
+            $insert = $pdo->prepare("
+                INSERT INTO remboursement
+                (id_credit, montant_rembourse, devise, date_remboursement, libele)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $insert->execute([
+                $id_credit,
+                $montant,
+                $devise,
+                $daterem,
+                $libele
+            ]);
+
+            /* ============================
+               6. ALERTE SI CRÉDIT SOLDÉ
+               ============================ */
+            if ($montant == $reste) {
+                $message = "Remboursement effectué. ⚠️ Crédit totalement remboursé.";
+            } else {
+                $message = "Remboursement enregistré avec succès. Reste à payer : " .
+                    number_format($reste - $montant, 2, ',', ' ') . " " . $devise;
+            }
+
+        } catch (PDOException $e) {
+            $message = "Erreur SQL : " . $e->getMessage();
+        }
+
+    } else {
+        $message = "Tous les champs sont obligatoires.";
     }
 
     header("Location: ../ramboursement.php?message=" . urlencode($message));
@@ -26,93 +123,61 @@ if (isset($_GET['delete_id'])) {
 /* ============================
    MODIFICATION D'UN REMBOURSEMENT
    ============================ */
-   if (isset($_POST['update'])) {
+if (isset($_POST['update'])) {
 
     $id_remboursement = (int) $_POST['id_remboursement'];
-    $credit  = htmlspecialchars($_POST['credit']);
-    $montant = htmlspecialchars($_POST['montant']);
-    $daterem = htmlspecialchars($_POST['daterem']);
-    $libele  = htmlspecialchars($_POST['libele']);
-    $devise=htmlspecialchars($_POST['devise']);
-    if (!empty($id_remboursement) && !empty($credit) && !empty($montant) && !empty($daterem) && !empty($libele) && !empty($devise)) {
+    $id_credit = (int) $_POST['credit'];
+    $montant   = (float) $_POST['montant'];
+    $devise    = $_POST['devise'];
+    $daterem   = $_POST['daterem'];
+    $libele    = $_POST['libele'];
 
-        try {
-            $query_update = $pdo->prepare("
-                UPDATE Tremboursement
-                SET 
-                    id_credit = ?,
-                    montant_rembourse = ?,
-                    devise=?,
-                    date_remboursement = ?,
-                    libele = ?
-                WHERE id_remboursement = ?
-            ");
+    try {
+        /* récupération du remboursement existant */
+        $oldReq = $pdo->prepare("
+            SELECT montant_rembourse
+            FROM remboursement
+            WHERE id_remboursement = ?
+        ");
+        $oldReq->execute([$id_remboursement]);
+        $old = $oldReq->fetch(PDO::FETCH_ASSOC);
 
-            $query_update->execute([
-                $credit,
-                $montant,
-                $devise,
-                $daterem,
-                $libele,
-                $id_remboursement
-            ]);
-
-            $message = "Remboursement modifié avec succès.";
-
-        } catch (PDOException $e) {
-            $message = "Erreur SQL : " . $e->getMessage();
+        if (!$old) {
+            header("Location: ../ramboursement.php?error=Remboursement introuvable");
+            exit();
         }
 
-    } else {
-        $message = "Tous les champs sont obligatoires.";
-    }
+        /* total sans l'ancien remboursement */
+        $sumReq = $pdo->prepare("
+            SELECT IFNULL(SUM(montant_rembourse),0) AS total
+            FROM remboursement
+            WHERE id_credit = ?
+              AND devise = ?
+              AND id_remboursement != ?
+        ");
+        $sumReq->execute([$id_credit, $devise, $id_remboursement]);
+        $total = $sumReq->fetch(PDO::FETCH_ASSOC)['total'];
 
-    header("Location: ../ramboursement.php?message=".($message));
-    exit();
-}
+        $creditReq = $pdo->prepare("SELECT montant_credit FROM Tcredit WHERE id_credit = ?");
+        $creditReq->execute([$id_credit]);
+        $credit = $creditReq->fetch(PDO::FETCH_ASSOC);
 
-/* ============================
-   INSERTION D'UN REMBOURSEMENT
-   ============================ */
-if (isset($_POST['save'])) {
-
-    $credit  = htmlspecialchars($_POST['credit']);
-    $montant = htmlspecialchars($_POST['montant']);
-    $daterem = htmlspecialchars($_POST['daterem']);
-    $libele  = htmlspecialchars($_POST['libele']);
-    $devise=htmlspecialchars($_POST['devise']);
-    if (!empty($credit) && !empty($montant) && !empty($devise) && !empty($daterem) && !empty($libele)) {
-
-        try {
-            $query_verif = $pdo->prepare(
-                "SELECT * FROM remboursement 
-                 WHERE id_credit = ? 
-                 AND montant_rembourse = ? 
-                 AND devise=?
-                 AND date_remboursement = ? 
-                 AND libele = ?"
-            );
-            $query_verif->execute([$credit, $montant,$devise, $daterem, $libele]);
-
-            if ($query_verif->fetch()) {
-                $message = "Cet enregistrement existe déjà.";
-            } else {
-                $query_inserer = $pdo->prepare(
-                    "INSERT INTO remboursement 
-                    (id_credit, montant_rembourse, devise, date_remboursement, libele) 
-                    VALUES (?, ?, ?, ?, ?)"
-                );
-                $query_inserer->execute([$credit, $montant, $devise, $daterem, $libele]);
-
-                $message = "Enregistrement effectué avec succès.";
-            }
-
-        } catch (PDOException $e) {
-            $message = "Erreur SQL : " . $e->getMessage();
+        if (($total + $montant) > $credit['montant_credit']) {
+            header("Location: ../ramboursement.php?error=Modification impossible : dépassement du montant du crédit");
+            exit();
         }
 
-    } else {
-        $message = "Tous les champs sont obligatoires.";
+        $update = $pdo->prepare("
+            UPDATE remboursement
+            SET montant_rembourse = ?, devise = ?, date_remboursement = ?, libele = ?
+            WHERE id_remboursement = ?
+        ");
+        $update->execute([$montant, $devise, $daterem, $libele, $id_remboursement]);
+
+        $message = "Remboursement modifié avec succès.";
+
+    } catch (PDOException $e) {
+        $message = "Erreur SQL : " . $e->getMessage();
     }
 
     header("Location: ../ramboursement.php?message=" . urlencode($message));

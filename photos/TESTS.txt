@@ -1,0 +1,100 @@
+USE gestion_mutualite;
+
+-- =======================
+-- ENTREPRISES
+-- =======================
+INSERT INTO entreprise (nom, adresse, telephone, email, date_creation, logo)
+VALUES 
+('Mutualité Butembo', 'Butembo, RDC', '0978123456', 'contact@mutbutembo.com', '2020-01-15', 'logo1.png'),
+('Mutualité Goma', 'Goma, RDC', '0978765432', 'contact@gomamutualite.com', '2021-06-20', 'logo2.png');
+
+-- =======================
+-- UTILISATEURS
+-- =======================
+INSERT INTO utilisateur (id_entreprise, noms, username, mot_de_passe, role, telephone, email, photo, statut, date_creation)
+VALUES
+(1, 'Alice KABILA', 'alice', 'password123', 'Admin', '0978000111', 'alice@mutbutembo.com', 'alice.png', 'Actif', '2020-02-01'),
+(1, 'Bob MBALULA', 'bob', 'password123', 'Caissier', '0978000222', 'bob@mutbutembo.com', 'bob.png', 'Actif', '2020-02-05'),
+(2, 'Clara TSHIMANGA', 'clara', 'password123', 'Secretaire', '0978000333', 'clara@gomamutualite.com', 'clara.png', 'Actif', '2021-07-01');
+
+-- =======================
+-- MEMBRES
+-- =======================
+INSERT INTO membre (id_entreprise, noms, sexe, etat_civil, nomPartainaire, email, telephone, adresse, date_adhesion, photo, statut)
+VALUES
+(1, 'Jean KALISA', 'Masculin', 'Marié', 'Marie KALISA', 'jean.kalisa@mail.com', '0978111122', 'Quartier Lumumba', '2020-03-01', 'jean.png', 'Actif'),
+(1, 'Sophie MUKOKO', 'Féminin', 'Célibataire', '', 'sophie.mukoko@mail.com', '0978112233', 'Quartier Kato', '2020-05-10', 'sophie.png', 'Actif'),
+(2, 'Paul NSHIMIYIMANA', 'Masculin', 'Marié', 'Alice NSHIMIYIMANA', 'paul.nshimi@mail.com', '0978113344', 'Quartier Goma', '2021-08-15', 'paul.png', 'Actif');
+
+-- =======================
+-- CAISSES
+-- =======================
+INSERT INTO caisse (id_utilisateur, libele, solde, date_update)
+VALUES
+(1, 'Caisse principale', 0, CURDATE()),
+(3, 'Caisse secondaire', 0, CURDATE());
+
+-- =======================
+-- COTISATIONS
+-- =======================
+INSERT INTO cotisation (id_compte, libele, montant, date_cotisation, semaine, annee)
+VALUES
+(1, 'Cotisation Mensuelle Janvier', 5000, '2026-01-01', 'S01', 2026),
+(2, 'Cotisation Mensuelle Janvier', 7000, '2026-01-02', 'S01', 2026),
+(3, 'Cotisation Mensuelle Janvier', 6000, '2026-01-03', 'S01', 2026);
+
+-- =======================
+-- TYPES DE CREDITS
+-- =======================
+INSERT INTO type_credit (libelle, taux_interet, duree_max)
+VALUES
+('Crédit court terme', 5, 4),
+('Crédit moyen terme', 10, 12),
+('Crédit long terme', 15, 24);
+
+-- =======================
+-- CREDITS
+-- =======================
+INSERT INTO credit (id_compte, id_type_credit, montant_credit, date_credit, date_echeance, statut, libele, taux_interet)
+VALUES
+(1, 1, 20000, '2026-01-05', '2026-02-02', 'En cours', 'Crédit urgence', 5),
+(2, 2, 50000, '2026-01-06', '2026-04-06', 'En cours', 'Crédit projet', 10);
+
+-- =======================
+-- REMBOURSEMENTS
+-- =======================
+INSERT INTO remboursement (id_credit, montant_rembourse, date_remboursement, libele)
+VALUES
+(1, 5000, '2026-01-10', 'Premier remboursement'),
+(2, 10000, '2026-01-12', 'Premier remboursement');
+
+-- =======================
+-- RETRAITS
+-- =======================
+INSERT INTO retrait (id_compte, montant, date_retrait, libele)
+VALUES
+(1, 2000, '2026-01-08', 'Retrait urgent'),
+(2, 3000, '2026-01-09', 'Retrait personnel');
+
+-- =======================
+-- COMPTES BLOQUÉS
+-- =======================
+INSERT INTO TmembreBl (noms, numero_compte_bloque, sexe, telephone, datenaissance, etatcivil, email, photo, statut)
+VALUES
+('Luc KABUYI', 'BL-0001', 'Masculin', '0978222233', '1990-05-12', 'Célibataire', 'luc.kabuyi@mail.com', 'luc.png', 'Actif'),
+('Aline KALONJI', 'BL-0002', 'Féminin', '0978333344', '1988-09-21', 'Mariée', 'aline.kalonji@mail.com', 'aline.png', 'Actif');
+
+INSERT INTO Tcompte_bloque (id_membre, numero_compte_bloque, solde, date_deblocage)
+VALUES
+(1, 'BL-0001', 10000, DATE_ADD(CURDATE(), INTERVAL 20 DAY)),
+(2, 'BL-0002', 5000, DATE_ADD(CURDATE(), INTERVAL 10 DAY));
+
+INSERT INTO Tdepot_compte_bloque (id_compte_bloque, montant, mode_paiement, libele)
+VALUES
+(1, 10000, 'Espèces', 'Dépôt initial'),
+(2, 5000, 'Virement', 'Dépôt initial');
+
+INSERT INTO Tretrait_compte_bloque (id_compte_bloque, montant, mode_paiement, libelle)
+VALUES
+(1, 2000, 'Espèces', 'Retrait partiel'),
+(2, 1000, 'Virement', 'Retrait partiel');

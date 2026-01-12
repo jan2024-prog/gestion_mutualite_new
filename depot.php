@@ -58,6 +58,31 @@ if (isset($_GET['id_depot'])) {
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Ajouter / Modifier un dépôt</h5>
+                    <!-- MESSAGES -->
+                     <?php
+                        if (isset($_SESSION['message'])) {
+                            echo "<div class='alert alert-success'>".$_SESSION['message']."</div>";
+                            unset($_SESSION['message']);
+                        }
+                        if (isset($_SESSION['messageError'])) {
+                            echo "<div class='alert alert-danger'>".$_SESSION['messageError']."</div>";
+                            unset($_SESSION['messageError']);
+                        }
+                    ?>
+                    <!-- MESSAGES -->
+                    <?php if (isset($_GET['message'])): ?>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <?= htmlspecialchars($_GET['message']) ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (isset($_GET['error'])): ?>
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <?= htmlspecialchars($_GET['error']) ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
 
                         <form class="row g-3" method="post" action="traitement/depotcompbl.php">
                             <?php if ($c): ?>
